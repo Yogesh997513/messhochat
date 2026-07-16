@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
   <title>FriendConnect Web</title>
-  <!-- PeerJS CDN -->
+  <!-- ✅ WORKING: PeerJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.1/peerjs.min.js"></script>
   <style>
     /* ----- CSS Reset & Base ----- */
@@ -531,7 +531,7 @@
 
     // ----- State -----
     let peer = null;
-    let currentCall = null;          // PeerJS MediaConnection
+    let currentCall = null;
     let localStream = null;
     let remoteStream = null;
     let isMuted = false;
@@ -541,7 +541,7 @@
     let callSeconds = 0;
     let myPeerId = '';
     let connectedFriendId = '';
-    let isInitiator = false;          // true if we initiated the call
+    let isInitiator = false;
     let reconnectTimer = null;
     let isEndingCall = false;
 
@@ -554,42 +554,60 @@
     }
     themeToggle.addEventListener('click', toggleTheme);
 
-    // ----- PeerJS init -----
+    // ----- PeerJS init with FIXED ID: 112233 -----
     function initPeer() {
       return new Promise((resolve, reject) => {
         try {
-          peer = new Peer(undefined, {
+          // ✅ CUSTOM ID: 112233
+          peer = new Peer('112233', {
             config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
           });
+          
           peer.on('open', id => {
             myPeerId = id;
             myIdText.textContent = id;
-            connectionStatusMsg.textContent = '✅ Your ID ready';
+            connectionStatusMsg.textContent = '✅ Your ID ready: ' + id;
             resolve(id);
           });
+          
           peer.on('error', err => {
             console.warn('Peer error:', err);
-            if (err.type === 'unavailable-id' || err.type === 'peer-unavailable') {
+            if (err.type === 'unavailable-id') {
+              connectionStatusMsg.textContent = '⚠️ ID 112233 already taken! Using random ID';
+              // Fallback: random ID
+              peer = new Peer({
+                config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
+              });
+              peer.on('open', id => {
+                myPeerId = id;
+                myIdText.textContent = id;
+                connectionStatusMsg.textContent = '✅ Your ID ready: ' + id;
+                resolve(id);
+              });
+              peer.on('error', reject);
+            } else {
               connectionStatusMsg.textContent = '⚠️ Connection error: ' + err.message;
+              reject(err);
             }
-            reject(err);
           });
+          
           peer.on('disconnected', () => {
             connectionStatusMsg.textContent = '⚠️ Disconnected from signaling';
             updateCallStatus('disconnected', false);
             if (isCallActive) attemptReconnect();
           });
+          
           peer.on('close', () => {
             connectionStatusMsg.textContent = '🔴 Peer closed';
             if (isCallActive) endCall();
           });
+          
           // Incoming call
           peer.on('call', incomingCall => {
             if (isCallActive) {
               incomingCall.close();
               return;
             }
-            // Answer with local stream if available, else get media
             if (localStream) {
               answerCall(incomingCall);
             } else {
@@ -639,7 +657,6 @@
           localStream = await getMedia();
           localVideo.srcObject = localStream;
         }
-        // Ensure peer is open
         if (!peer || peer.destroyed) {
           await initPeer();
         }
@@ -744,12 +761,10 @@
       isInitiator = false;
       isEndingCall = false;
       connectionStatusMsg.textContent = '📞 Call ended';
-      // reset buttons
       muteBtn.textContent = '🎤';
       videoBtn.textContent = '📷';
       isMuted = false;
       isVideoOff = false;
-      // clear chat
       chatMessages.innerHTML = '';
     }
 
@@ -760,7 +775,6 @@
       connectionStatusMsg.textContent = '🔄 Reconnecting...';
       reconnectTimer = setTimeout(() => {
         if (isCallActive && currentCall) {
-          // try to renegotiate? PeerJS doesn't support renegotiation, we end.
           endCall();
           connectionStatusMsg.textContent = '❌ Reconnect failed, call ended';
         }
@@ -772,7 +786,6 @@
     function sendChatMessage(text) {
       if (!text.trim()) return;
       if (currentCall && currentCall.peerConnection) {
-        // send via data channel if available
         try {
           const dc = currentCall.peerConnection.createDataChannel('chat');
           dc.onopen = () => {
@@ -780,9 +793,8 @@
             dc.close();
           };
         } catch (e) {
-          // fallback: send via PeerJS unreliable? we just append locally.
+          // fallback
         }
-        // Also append to local chat
         appendChatMessage('You', text, true);
       } else {
         appendChatMessage('You', text, true);
@@ -797,8 +809,8 @@
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    // Incoming data channel
     function setupDataChannel(call) {
+      if (!call.peerConnection) return;
       call.peerConnection.ondatachannel = (event) => {
         const dc = event.channel;
         dc.onmessage = (e) => {
@@ -846,7 +858,6 @@
           localStream.removeTrack(videoTrack);
           localStream.addTrack(newVideoTrack);
           localVideo.srcObject = localStream;
-          // replace track in call
           if (currentCall && currentCall.peerConnection) {
             const senders = currentCall.peerConnection.getSenders();
             const sender = senders.find(s => s.track && s.track.kind === 'video');
@@ -891,7 +902,6 @@
       navigator.clipboard.writeText(myPeerId).then(() => {
         connectionStatusMsg.textContent = '📋 ID copied!';
       }).catch(() => {
-        // fallback
         const ta = document.createElement('textarea');
         ta.value = myPeerId;
         document.body.appendChild(ta);
@@ -949,10 +959,10 @@
     async function bootstrap() {
       try {
         await initPeer();
-        // if no media yet, we'll get it when call starts
-        connectionStatusMsg.textContent = '✅ Ready. Share your ID.';
+        connectionStatusMsg.textContent = '✅ Ready. Share your ID: ' + myPeerId;
       } catch (err) {
         connectionStatusMsg.textContent = '❌ Peer init failed: ' + err.message;
+        console.error(err);
       }
     }
     bootstrap();
