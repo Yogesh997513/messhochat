@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <title>FriendConnect Web</title>
+  <!-- PeerJS CDN -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer></script>
+  <style>
+    /* ----- CSS Reset & Base ----- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: #0b0e1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s, color 0.3s;
+      padding: 12px;
+    }
+
+    /* Light / Dark mode variables (default dark) */
+    :root {
+      --bg-primary: #0b0e1a;
+      --bg-secondary: rgba(20, 25, 45, 0.7);
+      --bg-glass: rgba(255, 255, 255, 0.06);
+      --border-glass: rgba(255, 255, 255, 0.12);
+      --text-primary: #f0f3fa;
+      --text-secondary: #b0bce8;
+      --accent: #7c8cff;
+      --accent-glow: rgba(124, 140, 255, 0.35);
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      --gradient-bg: linear-gradient(145deg, #12172e, #070a14);
+      --card-bg: rgba(16, 22, 44, 0.65);
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #eef2f9;
+      --bg-secondary: rgba(230, 238, 255, 0.7);
+      --bg-glass: rgba(255, 255, 255, 0.3);
+      --border-glass: rgba(0, 0, 0, 0.08);
+      --text-primary: #12172e;
+      --text-secondary: #2a3360;
+      --accent: #4a5ddb;
+      --accent-glow: rgba(74, 93, 219, 0.25);
+      --shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+      --gradient-bg: linear-gradient(145deg, #d9e2f5, #c0cef0);
+      --card-bg: rgba(255, 255, 255, 0.5);
+    }
+
+    /* ----- Glassmorphism card ----- */
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      border: 1px solid var(--border-glass);
+      border-radius: 48px;
+      box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      padding: 24px 22px;
+      width: 100%;
+      max-width: 480px;
+      transition: background 0.3s, border 0.3s;
+      position: relative;
+    }
+
+    body {
+      background: var(--bg-primary);
+      background-image: var(--gradient-bg);
+    }
+
+    /* ----- Typography & utilities ----- */
+    .title {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #b7c6ff, #5f73f0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+
+    .sub {
+      color: var(--text-secondary);
+      font-weight: 400;
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    .flex-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .gap-8 { gap: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mb-8 { margin-bottom: 8px; }
+    .w-full { width: 100%; }
+
+    /* ----- Buttons (Material 3, animated) ----- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border: none;
+      background: var(--bg-glass);
+      color: var(--text-primary);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid var(--border-glass);
+      transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-decoration: none;
+      min-width: 48px;
+      min-height: 48px;
+      letter-spacing: 0.3px;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      box-shadow: 0 8px 18px var(--accent-glow);
+    }
+
+    .btn-primary:active {
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-glass);
+    }
+
+    .btn-icon {
+      padding: 10px 14px;
+      font-size: 1.3rem;
+      min-width: 52px;
+      min-height: 52px;
+      border-radius: 40px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(4px);
+    }
+
+    .btn-danger {
+      background: #e74c5e;
+      color: white;
+      border: none;
+      box-shadow: 0 6px 14px rgba(231, 76, 94, 0.3);
+    }
+
+    /* ----- Inputs ----- */
+    .input-group {
+      display: flex;
+      background: var(--bg-glass);
+      backdrop-filter: blur(4px);
+      border-radius: 60px;
+      border: 1px solid var(--border-glass);
+      padding: 4px;
+      transition: border 0.2s;
+      align-items: center;
+    }
+
+    .input-group:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .input-group input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 14px 18px;
+      font-size: 1rem;
+      color: var(--text-primary);
+      outline: none;
+      min-width: 0;
+    }
+
+    .input-group input::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.7;
+    }
+
+    .input-group .btn {
+      border-radius: 40px;
+      padding: 10px 18px;
+      min-height: 44px;
+    }
+
+    /* ----- Video containers ----- */
+    .video-wrapper {
+      position: relative;
+      background: #11152a;
+      border-radius: 32px;
+      overflow: hidden;
+      background: #0b0e1a;
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-glass);
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+    }
+
+    .video-wrapper video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #0a0c18;
+    }
+
+    .remote-video-wrapper {
+      position: relative;
+    }
+
+    .local-video-small {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      width: 90px;
+      height: 68px;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.2);
+      background: #0a0c18;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      transition: 0.2s;
+      z-index: 10;
+    }
+
+    .local-video-small video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* ----- Call controls ----- */
+    .call-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      background: rgba(124, 140, 255, 0.15);
+      backdrop-filter: blur(4px);
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-glass);
+      letter-spacing: 0.3px;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      background: var(--bg-glass);
+      padding: 6px 16px;
+      border-radius: 40px;
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--border-glass);
+    }
+
+    /* Chat panel */
+    .chat-panel {
+      margin-top: 18px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(8px);
+      border-radius: 32px;
+      padding: 12px;
+      border: 1px solid var(--border-glass);
+    }
+
+    .chat-messages {
+      max-height: 140px;
+      overflow-y: auto;
+      padding: 4px 4px 8px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      scrollbar-width: thin;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 4px;
+    }
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: var(--accent);
+      border-radius: 20px;
+    }
+
+    .msg-bubble {
+      background: rgba(124, 140, 255, 0.12);
+      backdrop-filter: blur(4px);
+      padding: 8px 14px;
+      border-radius: 28px;
+      border-bottom-left-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      max-width: 85%;
+      word-break: break-word;
+      border: 1px solid var(--border-glass);
+    }
+
+    .msg-bubble.self {
+      align-self: flex-end;
+      background: var(--accent);
+      color: white;
+      border-bottom-left-radius: 28px;
+      border-bottom-right-radius: 8px;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .chat-input-row input {
+      flex: 1;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border-glass);
+      border-radius: 40px;
+      padding: 12px 18px;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .chat-input-row input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .emoji-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.6rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      transition: 0.1s;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-glass);
+      border-radius: 40px;
+      padding: 6px 12px;
+      font-size: 1.4rem;
+      cursor: pointer;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .glass-card { padding: 16px; }
+      .title { font-size: 1.7rem; }
+      .local-video-small { width: 70px; height: 54px; bottom: 8px; right: 8px; }
+      .btn { padding: 10px 16px; font-size: 0.85rem; min-height: 44px; }
+    }
+
+    /* hidden utility */
+    .hidden { display: none !important; }
+
+    /* Connection status */
+    .conn-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot.green { background: #3bd67b; box-shadow: 0 0 8px #3bd67b; }
+    .dot.yellow { background: #f5b342; box-shadow: 0 0 8px #f5b342; }
+    .dot.red { background: #e74c5e; box-shadow: 0 0 8px #e74c5e; }
+
+    .friend-id-box {
+      background: var(--bg-glass);
+      padding: 8px 16px;
+      border-radius: 40px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      border: 1px solid var(--border-glass);
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* fullscreen fix */
+    :-webkit-full-screen .video-wrapper { border-radius: 0; }
+    :-moz-full-screen .video-wrapper { border-radius: 0; }
+    :fullscreen .video-wrapper { border-radius: 0; }
+  </style>
+</head>
+<body>
+<div class="glass-card" id="app" role="main">
+  <!-- Theme toggle -->
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
+
+  <!-- HOME SCREEN -->
+  <div id="homeScreen">
+    <div class="flex-between">
+      <h1 class="title">FriendConnect</h1>
+      <span class="status-badge conn-status"><span class="dot green"></span> ready</span>
+    </div>
+    <p class="sub">Private 1:1 · no signup · end-to-end</p>
+
+    <!-- Friend ID display -->
+    <div class="flex-row mt-12">
+      <span class="friend-id-box" id="myIdDisplay">
+        <span id="myIdText">loading...</span>
+        <button class="btn btn-icon" id="copyIdBtn" style="padding:4px 10px; min-height:34px;" aria-label="Copy ID">📋</button>
+        <button class="btn btn-icon" id="shareIdBtn" style="padding:4px 10px; min-height:34px;" aria-label="Share ID">📤</button>
+      </span>
+    </div>
+
+    <!-- Connect section -->
+    <div class="mt-16">
+      <div class="input-group">
+        <input type="text" id="friendIdInput" placeholder="Enter Friend ID" autocomplete="off" inputmode="text">
+        <button class="btn btn-primary" id="connectBtn">Connect</button>
+      </div>
+      <p id="connectionStatusMsg" class="status-badge mt-8" style="display:inline-block;">🔗 Enter ID to call</p>
+    </div>
+
+    <!-- Call screen (hidden initially) -->
+    <div id="callScreen" class="hidden">
+      <div class="video-wrapper remote-video-wrapper">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="local-video-small">
+          <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+        <div style="position:absolute; top:12px; left:14px; display:flex; gap:10px; flex-wrap:wrap;">
+          <span class="status-badge" id="callTimerDisplay">00:00</span>
+          <span class="status-badge" id="callStatusBadge">🔵 connecting</span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="call-controls">
+        <button class="btn btn-icon" id="muteBtn" aria-label="Mute">🎤</button>
+        <button class="btn btn-icon" id="videoBtn" aria-label="Camera">📷</button>
+        <button class="btn btn-icon" id="switchCamBtn" aria-label="Switch camera">🔄</button>
+        <button class="btn btn-icon" id="fullscreenBtn" aria-label="Fullscreen">⛶</button>
+        <button class="btn btn-danger" id="endCallBtn">End Call</button>
+      </div>
+
+      <!-- Chat -->
+      <div class="chat-panel">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-row">
+          <button class="emoji-btn" id="emojiBtn">😊</button>
+          <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off">
+          <button class="btn btn-primary" id="sendChatBtn" style="padding:8px 18px;">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    "use strict";
+
+    // ----- DOM refs -----
+    const $ = id => document.getElementById(id);
+    const myIdText = $('myIdText');
+    const copyIdBtn = $('copyIdBtn');
+    const shareIdBtn = $('shareIdBtn');
+    const friendIdInput = $('friendIdInput');
+    const connectBtn = $('connectBtn');
+    const connectionStatusMsg = $('connectionStatusMsg');
+    const homeScreen = $('homeScreen');
+    const callScreen = $('callScreen');
+    const localVideo = $('localVideo');
+    const remoteVideo = $('remoteVideo');
+    const muteBtn = $('muteBtn');
+    const videoBtn = $('videoBtn');
+    const switchCamBtn = $('switchCamBtn');
+    const fullscreenBtn = $('fullscreenBtn');
+    const endCallBtn = $('endCallBtn');
+    const callTimerDisplay = $('callTimerDisplay');
+    const callStatusBadge = $('callStatusBadge');
+    const chatMessages = $('chatMessages');
+    const chatInput = $('chatInput');
+    const sendChatBtn = $('sendChatBtn');
+    const emojiBtn = $('emojiBtn');
+    const themeToggle = $('themeToggle');
+
+    // ----- State -----
+    let peer = null;
+    let currentCall = null;          // PeerJS MediaConnection
+    let localStream = null;
+    let remoteStream = null;
+    let isMuted = false;
+    let isVideoOff = false;
+    let isCallActive = false;
+    let callTimerInterval = null;
+    let callSeconds = 0;
+    let myPeerId = '';
+    let connectedFriendId = '';
+    let isInitiator = false;          // true if we initiated the call
+    let reconnectTimer = null;
+    let isEndingCall = false;
+
+    // ----- Theme -----
+    let currentTheme = 'dark';
+    function toggleTheme() {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      themeToggle.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+    }
+    themeToggle.addEventListener('click', toggleTheme);
+
+    // ----- PeerJS init -----
+    function initPeer() {
+      return new Promise((resolve, reject) => {
+        try {
+          peer = new Peer(undefined, {
+            config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
+          });
+          peer.on('open', id => {
+            myPeerId = id;
+            myIdText.textContent = id;
+            connectionStatusMsg.textContent = '✅ Your ID ready';
+            resolve(id);
+          });
+          peer.on('error', err => {
+            console.warn('Peer error:', err);
+            if (err.type === 'unavailable-id' || err.type === 'peer-unavailable') {
+              connectionStatusMsg.textContent = '⚠️ Connection error: ' + err.message;
+            }
+            reject(err);
+          });
+          peer.on('disconnected', () => {
+            connectionStatusMsg.textContent = '⚠️ Disconnected from signaling';
+            updateCallStatus('disconnected', false);
+            if (isCallActive) attemptReconnect();
+          });
+          peer.on('close', () => {
+            connectionStatusMsg.textContent = '🔴 Peer closed';
+            if (isCallActive) endCall();
+          });
+          // Incoming call
+          peer.on('call', incomingCall => {
+            if (isCallActive) {
+              incomingCall.close();
+              return;
+            }
+            // Answer with local stream if available, else get media
+            if (localStream) {
+              answerCall(incomingCall);
+            } else {
+              getMedia().then(stream => {
+                localStream = stream;
+                localVideo.srcObject = stream;
+                answerCall(incomingCall);
+              }).catch(err => {
+                connectionStatusMsg.textContent = '❌ Cannot access media: ' + err.message;
+                incomingCall.close();
+              });
+            }
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+
+    function answerCall(incomingCall) {
+      currentCall = incomingCall;
+      isInitiator = false;
+      incomingCall.answer(localStream);
+      setupCallEvents(incomingCall);
+      showCallScreen();
+      updateCallStatus('connected');
+      connectionStatusMsg.textContent = '📞 Incoming call answered';
+    }
+
+    // ----- Media -----
+    async function getMedia() {
+      try {
+        const constraints = { audio: true, video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        return stream;
+      } catch (err) {
+        console.error('getUserMedia error:', err);
+        throw err;
+      }
+    }
+
+    // ----- Start call (outgoing) -----
+    async function startCall(friendId) {
+      if (isCallActive) return;
+      try {
+        if (!localStream) {
+          localStream = await getMedia();
+          localVideo.srcObject = localStream;
+        }
+        // Ensure peer is open
+        if (!peer || peer.destroyed) {
+          await initPeer();
+        }
+        const call = peer.call(friendId, localStream);
+        currentCall = call;
+        isInitiator = true;
+        setupCallEvents(call);
+        showCallScreen();
+        updateCallStatus('connecting');
+        connectionStatusMsg.textContent = '📞 Calling ' + friendId.substring(0,6)+'...';
+        connectedFriendId = friendId;
+      } catch (err) {
+        connectionStatusMsg.textContent = '❌ Cannot start call: ' + err.message;
+        console.error(err);
+      }
+    }
+
+    function setupCallEvents(call) {
+      call.on('stream', remoteStream => {
+        remoteVideo.srcObject = remoteStream;
+        isCallActive = true;
+        updateCallStatus('connected');
+        connectionStatusMsg.textContent = '📹 Connected with ' + (connectedFriendId || 'friend');
+        startTimer();
+      });
+      call.on('close', () => {
+        if (!isEndingCall) {
+          endCall();
+        }
+      });
+      call.on('error', err => {
+        console.warn('Call error:', err);
+        if (!isEndingCall) endCall();
+      });
+    }
+
+    // ----- UI helpers -----
+    function showCallScreen() {
+      homeScreen.classList.add('hidden');
+      callScreen.classList.remove('hidden');
+    }
+
+    function hideCallScreen() {
+      callScreen.classList.add('hidden');
+      homeScreen.classList.remove('hidden');
+    }
+
+    function updateCallStatus(status, isConnected = true) {
+      let label = '';
+      if (status === 'connecting') label = '🔄 connecting...';
+      else if (status === 'connected') label = '🟢 connected';
+      else if (status === 'disconnected') label = '🔴 disconnected';
+      else if (status === 'ended') label = '⏹️ ended';
+      else label = status;
+      callStatusBadge.textContent = label;
+      if (status === 'connected') {
+        callStatusBadge.style.background = 'rgba(59, 214, 123, 0.2)';
+      } else {
+        callStatusBadge.style.background = '';
+      }
+    }
+
+    function startTimer() {
+      callSeconds = 0;
+      clearInterval(callTimerInterval);
+      callTimerInterval = setInterval(() => {
+        callSeconds++;
+        const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+        const s = String(callSeconds % 60).padStart(2, '0');
+        callTimerDisplay.textContent = m + ':' + s;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(callTimerInterval);
+      callTimerDisplay.textContent = '00:00';
+    }
+
+    // ----- End call -----
+    function endCall() {
+      if (isEndingCall) return;
+      isEndingCall = true;
+      isCallActive = false;
+      stopTimer();
+      updateCallStatus('ended', false);
+      if (currentCall) {
+        try { currentCall.close(); } catch(e) {}
+        currentCall = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+        localVideo.srcObject = null;
+      }
+      if (remoteStream) {
+        remoteStream.getTracks().forEach(t => t.stop());
+        remoteStream = null;
+        remoteVideo.srcObject = null;
+      }
+      hideCallScreen();
+      connectedFriendId = '';
+      isInitiator = false;
+      isEndingCall = false;
+      connectionStatusMsg.textContent = '📞 Call ended';
+      // reset buttons
+      muteBtn.textContent = '🎤';
+      videoBtn.textContent = '📷';
+      isMuted = false;
+      isVideoOff = false;
+      // clear chat
+      chatMessages.innerHTML = '';
+    }
+
+    // ----- Reconnect (simple) -----
+    function attemptReconnect() {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (!isCallActive) return;
+      connectionStatusMsg.textContent = '🔄 Reconnecting...';
+      reconnectTimer = setTimeout(() => {
+        if (isCallActive && currentCall) {
+          // try to renegotiate? PeerJS doesn't support renegotiation, we end.
+          endCall();
+          connectionStatusMsg.textContent = '❌ Reconnect failed, call ended';
+        }
+        reconnectTimer = null;
+      }, 5000);
+    }
+
+    // ----- Chat -----
+    function sendChatMessage(text) {
+      if (!text.trim()) return;
+      if (currentCall && currentCall.peerConnection) {
+        // send via data channel if available
+        try {
+          const dc = currentCall.peerConnection.createDataChannel('chat');
+          dc.onopen = () => {
+            dc.send(JSON.stringify({ type: 'chat', payload: text }));
+            dc.close();
+          };
+        } catch (e) {
+          // fallback: send via PeerJS unreliable? we just append locally.
+        }
+        // Also append to local chat
+        appendChatMessage('You', text, true);
+      } else {
+        appendChatMessage('You', text, true);
+      }
+    }
+
+    function appendChatMessage(sender, text, isSelf = false) {
+      const div = document.createElement('div');
+      div.className = 'msg-bubble' + (isSelf ? ' self' : '');
+      div.textContent = text;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Incoming data channel
+    function setupDataChannel(call) {
+      call.peerConnection.ondatachannel = (event) => {
+        const dc = event.channel;
+        dc.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'chat') {
+              appendChatMessage('Friend', data.payload);
+            }
+          } catch (_) {}
+        };
+      };
+    }
+
+    // Override setupCallEvents to include data channel
+    const origSetup = setupCallEvents;
+    setupCallEvents = function(call) {
+      origSetup(call);
+      setupDataChannel(call);
+    };
+
+    // ----- UI controls -----
+    muteBtn.addEventListener('click', () => {
+      if (!localStream) return;
+      isMuted = !isMuted;
+      localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+      muteBtn.textContent = isMuted ? '🔇' : '🎤';
+    });
+
+    videoBtn.addEventListener('click', () => {
+      if (!localStream) return;
+      isVideoOff = !isVideoOff;
+      localStream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
+      videoBtn.textContent = isVideoOff ? '📷❌' : '📷';
+    });
+
+    switchCamBtn.addEventListener('click', async () => {
+      if (!localStream) return;
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (!videoTrack) return;
+      const newConstraints = { audio: false, video: { facingMode: videoTrack.getSettings().facingMode === 'user' ? 'environment' : 'user' } };
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia(newConstraints);
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        if (newVideoTrack) {
+          localStream.removeTrack(videoTrack);
+          localStream.addTrack(newVideoTrack);
+          localVideo.srcObject = localStream;
+          // replace track in call
+          if (currentCall && currentCall.peerConnection) {
+            const senders = currentCall.peerConnection.getSenders();
+            const sender = senders.find(s => s.track && s.track.kind === 'video');
+            if (sender) sender.replaceTrack(newVideoTrack);
+          }
+          videoTrack.stop();
+        }
+      } catch (err) {
+        console.warn('Switch cam error:', err);
+      }
+    });
+
+    fullscreenBtn.addEventListener('click', () => {
+      const wrapper = document.querySelector('.video-wrapper');
+      if (!document.fullscreenElement) {
+        wrapper.requestFullscreen?.().catch(() => {});
+      } else {
+        document.exitFullscreen?.().catch(() => {});
+      }
+    });
+
+    endCallBtn.addEventListener('click', endCall);
+
+    // Connect button
+    connectBtn.addEventListener('click', async () => {
+      const id = friendIdInput.value.trim();
+      if (!id) {
+        connectionStatusMsg.textContent = '⚠️ Enter a Friend ID';
+        return;
+      }
+      if (id === myPeerId) {
+        connectionStatusMsg.textContent = '⚠️ Cannot call yourself';
+        return;
+      }
+      connectedFriendId = id;
+      await startCall(id);
+    });
+
+    // Copy ID
+    copyIdBtn.addEventListener('click', () => {
+      if (!myPeerId) return;
+      navigator.clipboard.writeText(myPeerId).then(() => {
+        connectionStatusMsg.textContent = '📋 ID copied!';
+      }).catch(() => {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = myPeerId;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        connectionStatusMsg.textContent = '📋 ID copied!';
+      });
+    });
+
+    // Share ID
+    shareIdBtn.addEventListener('click', () => {
+      if (!myPeerId) return;
+      if (navigator.share) {
+        navigator.share({ title: 'FriendConnect ID', text: myPeerId }).catch(() => {});
+      } else {
+        copyIdBtn.click();
+      }
+    });
+
+    // Chat send
+    sendChatBtn.addEventListener('click', () => {
+      const text = chatInput.value;
+      if (text) {
+        sendChatMessage(text);
+        chatInput.value = '';
+      }
+    });
+    chatInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        sendChatBtn.click();
+        e.preventDefault();
+      }
+    });
+
+    // Emoji picker (simple)
+    emojiBtn.addEventListener('click', () => {
+      const emojis = ['😊','😂','❤️','🔥','👍','👋','😍','🤝','💯','✨','🎉','🙌'];
+      const picker = document.createElement('div');
+      picker.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap; background:var(--bg-glass); padding:8px; border-radius:30px; margin-top:4px;';
+      emojis.forEach(e => {
+        const b = document.createElement('button');
+        b.textContent = e;
+        b.style.cssText = 'font-size:1.6rem; background:transparent; border:none; cursor:pointer; padding:4px 8px;';
+        b.addEventListener('click', () => {
+          chatInput.value += e;
+          picker.remove();
+        });
+        picker.appendChild(b);
+      });
+      emojiBtn.parentNode.insertBefore(picker, emojiBtn.nextSibling);
+    });
+
+    // ----- Init app -----
+    async function bootstrap() {
+      try {
+        await initPeer();
+        // if no media yet, we'll get it when call starts
+        connectionStatusMsg.textContent = '✅ Ready. Share your ID.';
+      } catch (err) {
+        connectionStatusMsg.textContent = '❌ Peer init failed: ' + err.message;
+      }
+    }
+    bootstrap();
+
+    // Auto reconnect handler for peer disconnect
+    peer?.on('disconnected', () => {
+      if (isCallActive) {
+        attemptReconnect();
+      }
+    });
+
+    // extra safety
+    window.addEventListener('beforeunload', () => {
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+      if (currentCall) currentCall.close();
+    });
+
+  })();
+</script>
+</body>
+</html>
